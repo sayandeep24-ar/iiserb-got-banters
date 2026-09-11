@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IISERB GOT BANTERS - Talent Show Stage</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Ambient Theatrical Lighting & Backdrop -->
+  <div class="theatre-bg"></div>
+
+  <!-- Confetti Canvas for Grand Finale Reveal -->
+  <canvas id="confettiCanvas" style="position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:99;"></canvas>
+
+  <div class="app-container">
+    <!-- Header with Uday Magazine Logo & Luxury Branding -->
+    <header class="stage-header">
+      <div class="brand-section">
+        <div class="uday-logo-ring">
+          <img src="/assets/uday_logo.jpg" alt="Uday Magazine Logo" class="uday-logo-img">
+        </div>
+        <div class="brand-text">
+          <div class="brand-presents">
+            <span class="brand-uday">UDAY</span>
+            <span class="brand-magazine">MAGAZINE</span>
+            <span class="brand-divider">|</span>
+            <span class="brand-presents-label">PRESENTS</span>
+          </div>
+          <h1 class="brand-title">IISERB GOT BANTERS</h1>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Local Network Audience URL Pill -->
+        <div class="network-pill" id="networkPill" title="Click to view or edit audience voting URL">
+          <span class="status-dot"></span>
+          <span>Vote URL: <strong id="lanIpText">Detecting...</strong></span>
+        </div>
+
+        <!-- Sound FX Toggle -->
+        <button class="btn-icon" id="soundToggleBtn" title="Toggle Stage Sound Effects">
+          🔊
+        </button>
+
+        <!-- Leaderboard Trigger -->
+        <button class="btn-secondary" id="openLeaderboardBtn" style="padding: 0.5rem 1rem;">
+          🏆 Leaderboard (<span id="headerLeaderboardCount">0</span>)
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Stage Dynamic View -->
+    <main class="stage-main">
+      
+      <!-- ============================================== -->
+      <!-- VIEW 1: CANDIDATE CHECK-IN (WAITING TO ENTER) -->
+      <!-- ============================================== -->
+      <section class="stage-card" id="view-idle">
+        <div class="silhouette-avatar">
+          <span>?</span>
+        </div>
+
+        <h2 class="performer-title" style="margin-bottom: 0.5rem;">NEXT ON STAGE</h2>
+        <p class="act-subtitle">Enter candidate details and call them to the spotlight</p>
+
+        <form id="candidateForm" onsubmit="event.preventDefault(); handleStartPerformance();">
+          <div class="form-group">
+            <label class="form-label" for="candidateNameInput">Candidate / Performer Name</label>
+            <input 
+              type="text" 
+              id="candidateNameInput" 
+              class="form-input" 
+              placeholder="e.g. Rahul Sharma" 
+              required 
+              autocomplete="off"
+              autofocus
+            >
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="candidateActInput">Talent / Act (Optional)</label>
+            <input 
+              type="text" 
+              id="candidateActInput" 
+              class="form-input" 
+              placeholder="e.g. Stand-up Comedy / Roast / Mimicry / Banter" 
+              autocomplete="off"
+            >
+          </div>
+
+          <div style="margin-top: 2rem;">
+            <button type="submit" class="btn-gold-primary">
+              🎤 Bring to Stage & Start 1-Min Timer
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: 1-MINUTE PERFORMANCE TIMER             -->
+      <!-- ============================================== -->
+      <section class="stage-card" id="view-performing" style="display: none;">
+        <div class="performer-badge">
+          <span>🔥 On Stage Now</span>
+        </div>
+
+        <h2 class="performer-title" id="stagePerformerName">Candidate Name</h2>
+        <p class="act-subtitle" id="stagePerformerAct">Stand-up Act</p>
+
+        <!-- 60s Circular SVG Countdown Ring -->
+        <div class="timer-container">
+          <svg class="timer-svg" viewBox="0 0 280 280">
+            <defs>
+              <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFF5D0" />
+                <stop offset="50%" stop-color="#E5B842" />
+                <stop offset="100%" stop-color="#9C771C" />
+              </linearGradient>
+            </defs>
+            <circle class="timer-bg-circle" cx="140" cy="140" r="130"></circle>
+            <circle class="timer-progress-circle" id="performanceProgressCircle" cx="140" cy="140" r="130"></circle>
+          </svg>
+          <div class="timer-digits-wrapper">
+            <div class="timer-digits" id="performanceDigits">60</div>
+            <div class="timer-label">SECONDS LEFT</div>
+          </div>
+        </div>
+
+        <div class="timer-controls">
+          <button class="btn-secondary" id="add15sBtn" title="Add 15 bonus seconds">
+            + 15s
+          </button>
+          <button class="btn-gold-primary" id="endPerformanceBtn">
+            ⚡ Performance Over (Open Voting)
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 3: 45-SECOND AUDIENCE VOTING + QR CODE    -->
+      <!-- ============================================== -->
+      <section class="stage-card" id="view-voting" style="display: none;">
+        <div class="performer-badge">
+          <span>📱 Audience Voting In Progress</span>
+        </div>
+
+        <h2 class="performer-title" id="votingPerformerName">Candidate Name</h2>
+        <p class="act-subtitle">Scan the QR code to grade marks from 1 to 10!</p>
+
+        <div class="voting-grid">
+          <!-- Dynamically Generated High-Res QR Code -->
+          <div class="qr-box">
+            <img id="stageQrImage" src="" alt="Audience Voting QR Code" class="qr-img">
+            <div class="qr-caption">Scan with Phone Camera</div>
+          </div>
+
+          <!-- Voting countdown & live stats -->
+          <div class="voting-info">
+            <div class="voting-timer-badge">
+              <div class="voting-timer-number" id="votingDigits">45</div>
+              <div class="voting-timer-meta">
+                <div class="voting-timer-title">Seconds To Vote</div>
+                <div class="voting-timer-sub">Grades lock automatically</div>
+              </div>
+            </div>
+
+            <div class="direct-link-card">
+              <div class="direct-link-label">Or Open Link Directly:</div>
+              <div class="direct-link-url" id="votingDirectLink">http://localhost:3000/vote</div>
+            </div>
+
+            <div class="live-votes-counter">
+              <span class="live-badge">LIVE</span>
+              <span>Audience Votes: <strong id="liveVotesCount" style="color:#FFF;font-size:1.4rem;">0</strong></span>
+            </div>
+
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+              <button class="btn-secondary" id="add10sVotingBtn" style="font-size: 0.85rem; padding: 0.5rem 1rem;">
+                + 10s Extra
+              </button>
+              <button class="btn-secondary" id="forceRevealBtn" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;">
+                ⏭️ Close Voting Early & Reveal
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 4: DRAMATIC SCORE REVEAL (HALF POINTS)   -->
+      <!-- ============================================== -->
+      <section class="stage-card score-reveal-card" id="view-revealed" style="display: none;">
+        <div class="winner-crown">👑</div>
+        <div class="performer-badge">
+          <span>Official Verdict</span>
+        </div>
+
+        <h2 class="performer-title" id="revealPerformerName">Candidate Name</h2>
+        <p class="act-subtitle" id="revealPerformerAct">Stand-up Act</p>
+
+        <!-- Rounded Score Box (1, 1.5, 2, 2.5 ... 10) -->
+        <div class="rounded-score-box">
+          <div class="score-title-banner">IISERB LATENT SCORE</div>
+          <div class="big-score-display">
+            <span class="score-digits" id="revealScoreDigits">0.0</span>
+            <span class="score-total">/ 10</span>
+          </div>
+
+          <!-- Star Ratings Bar -->
+          <div class="stars-rating-bar" id="revealStarsBar">
+            ★★★★★
+          </div>
+
+          <!-- Statistics Breakdown -->
+          <div class="score-stats-grid">
+            <div class="stat-item">
+              <span class="stat-val" id="revealVotesCount">0</span>
+              <span class="stat-lbl">Audience Votes</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-val" id="revealRawAvg">0.00</span>
+              <span class="stat-lbl">Raw Average</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-val" id="revealRoundedVal" style="color:var(--gold-primary);">0.0</span>
+              <span class="stat-lbl">Rounded (0.5 Step)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal-actions">
+          <button class="btn-gold-primary" id="nextCandidateBtn">
+            ✨ Next Participant
+          </button>
+          <button class="btn-secondary" id="viewLeaderboardFromRevealBtn">
+            🏆 View Leaderboard
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="stage-footer">
+      IISERB GOT BANTERS &bull; UDAY MAGAZINE &bull; LOCALHOST STAGE CONTROLLER
+    </footer>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- LEADERBOARD MODAL (PERSISTENT & DETAILED)       -->
+  <!-- ============================================== -->
+  <div class="modal-backdrop" id="leaderboardModal">
+    <div class="modal-card" style="max-width: 780px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <span style="font-size: 1.6rem;">🏆</span>
+          <div>
+            <h3 class="modal-title" style="line-height: 1.1;">Event Leaderboard</h3>
+            <div style="font-size: 0.8rem; color: var(--gold-light);">Stored persistently with marks and details</div>
+          </div>
+        </div>
+        <button class="modal-close" id="closeLeaderboardBtn">&times;</button>
+      </div>
+
+      <!-- Top 3 Podium Highlights -->
+      <div id="podiumContainer" style="display: grid; grid-template-columns: 1fr 1.1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem; align-items: flex-end;">
+        <!-- Filled dynamically by stage.js -->
+      </div>
+
+      <!-- Full Candidates List -->
+      <div class="leaderboard-list" id="leaderboardList" style="max-height: 400px;">
+        <div style="color: var(--text-muted); padding: 2rem 0; text-align: center;">
+          No candidates evaluated yet!
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(212, 175, 55, 0.2);">
+        <a href="/api/leaderboard/export" target="_blank" class="btn-secondary" style="font-size: 0.85rem;">
+          📥 Download CSV
+        </a>
+        <button class="btn-secondary" id="clearLeaderboardBtn" style="font-size: 0.85rem; color: #ff8888; border-color: rgba(255, 100, 100, 0.3);">
+          🗑️ Clear All Scores
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- NETWORK / URL OVERRIDE MODAL                   -->
+  <!-- ============================================== -->
+  <div class="modal-backdrop" id="networkModal">
+    <div class="modal-card" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🌐 Audience Voting URL</h3>
+        <button class="modal-close" id="closeNetworkModalBtn">&times;</button>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">
+        The QR code is generated using this URL. Phones must be on the same Wi-Fi network (or hotspot) to access this address.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">Host URL (Embedded in QR)</label>
+        <input type="text" id="hostUrlOverrideInput" class="form-input" placeholder="http://192.168.1.100:3000">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+        <button class="btn-secondary" id="cancelNetworkBtn">Cancel</button>
+        <button class="btn-gold-primary" id="saveNetworkBtn" style="padding: 0.6rem 1.5rem; font-size: 0.95rem;">Save & Update QR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.IO Client -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Stage Screen Controller -->
+  <script src="/js/stage.js"></script>
+</body>
+</html>
