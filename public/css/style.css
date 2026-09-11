@@ -184,7 +184,36 @@ body {
   line-height: 1.2;
 }
 
-/* Header Controls / Status */
+/* Copyright Tag & Header Controls */
+.header-right-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.copyright-tag {
+  font-size: 0.78rem;
+  color: var(--gold-light);
+  letter-spacing: 1.2px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(229, 184, 66, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  padding: 0.25rem 0.85rem;
+  border-radius: 50px;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.15);
+  text-transform: uppercase;
+}
+
+.copyright-tag .copy-symbol {
+  color: var(--gold-primary);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
