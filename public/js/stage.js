@@ -230,24 +230,38 @@ function switchView(targetView) {
 
 // Generate & Update QR Code
 async function updateQrCode(url) {
+  // If running on Render or any public domain, automatically use browser's public origin
+  const isPublicDomain = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const effectiveUrl = isPublicDomain ? `${window.location.origin}/vote` : url;
+
   try {
-    const res = await fetch(`/api/qr?text=${encodeURIComponent(url)}`);
+    const res = await fetch(`/api/qr?text=${encodeURIComponent(effectiveUrl)}`);
     const data = await res.json();
     if (data.qrCodeDataUrl) {
       stageQrImage.src = data.qrCodeDataUrl;
     }
-    votingDirectLink.textContent = url;
+    votingDirectLink.textContent = effectiveUrl;
   } catch (err) {
     console.error("QR Code generation error:", err);
   }
 }
 
+// Automatically sync public host URL with server if running on Render / Cloud
+if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+  fetch('/api/config/host-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: window.location.origin })
+  }).catch(() => {});
+}
+
 // State Update Handler
 socket.on('state:update', (state) => {
   lastKnownStatus = state.status;
-  currentHostUrl = state.hostUrl;
-  lanIpText.textContent = state.votingUrl;
-  hostUrlOverrideInput.value = state.hostUrl;
+  const isPublicDomain = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  currentHostUrl = isPublicDomain ? window.location.origin : state.hostUrl;
+  lanIpText.textContent = isPublicDomain ? `${window.location.origin}/vote` : state.votingUrl;
+  hostUrlOverrideInput.value = currentHostUrl;
 
   if (state.status === 'IDLE') {
     switchView(viewIdle);

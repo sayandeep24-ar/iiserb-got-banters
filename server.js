@@ -47,9 +47,8 @@ function saveLeaderboard(board) {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Detect best Local Area Network IPv4 address (Wi-Fi / Ethernet)
+// Detect best Local Area Network IPv4 address (Wi-Fi / Ethernet fallback for localhost)
 function getLocalNetworkIp() {
   const interfaces = os.networkInterfaces();
   const candidates = [];
@@ -68,17 +67,43 @@ function getLocalNetworkIp() {
   return candidates.length > 0 ? candidates[0].address : 'localhost';
 }
 
-let configuredHostUrl = `http://${getLocalNetworkIp()}:${PORT}`;
+// Auto-detect Render or Cloud Public URL
+// Render automatically provides RENDER_EXTERNAL_URL (e.g. https://iiserb-banters.onrender.com)
+const CLOUD_PUBLIC_URL = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL || process.env.SERVER_URL;
+let configuredHostUrl = CLOUD_PUBLIC_URL || `http://${getLocalNetworkIp()}:${PORT}`;
+
+// Middleware to automatically capture the public domain from incoming browser requests
+// (handles Render, Railway, ngrok, custom domains seamlessly)
+app.use((req, res, next) => {
+  const host = req.get('host');
+  if (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    const currentPublicUrl = `${proto}://${host}`;
+    
+    // If our current configured host is still an internal IP, auto-upgrade to the real public URL
+    const isInternal = configuredHostUrl.startsWith('http://10.') || 
+                       configuredHostUrl.startsWith('http://172.') || 
+                       configuredHostUrl.startsWith('http://192.168.') || 
+                       configuredHostUrl.includes('localhost');
+                       
+    if (isInternal || configuredHostUrl !== currentPublicUrl) {
+      configuredHostUrl = currentPublicUrl;
+    }
+  }
+  next();
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Configurable Phase Timers
 const PERFORMANCE_TIME = 60; // 1 minute performance
-let VOTING_TIME = 45;        // 45 seconds voting (increased from 20s as requested)
+let VOTING_TIME = 45;        // 45 seconds voting
 
 let appState = {
   status: 'IDLE', // 'IDLE' | 'PERFORMING' | 'VOTING' | 'REVEALED'
   currentCandidate: null,
   timer: 0,
-  votes: [], // [ { voterId, score, timestamp } ]
+  votes: [],
   lastResult: null,
   leaderboard: loadLeaderboard(),
   votingDuration: VOTING_TIME
@@ -189,7 +214,6 @@ function revealScoresPhase() {
 
   // Persist candidate to leaderboard
   if (appState.currentCandidate) {
-    // Remove if candidate already exists in leaderboard, then add updated
     appState.leaderboard = appState.leaderboard.filter(c => c.id !== appState.currentCandidate.id);
     appState.leaderboard.push({
       id: appState.currentCandidate.id,
@@ -204,10 +228,7 @@ function revealScoresPhase() {
       date: new Date().toLocaleDateString()
     });
 
-    // Sort leaderboard by roundedScore descending, then rawAverage
     appState.leaderboard.sort((a, b) => b.roundedScore - a.roundedScore || b.rawAverage - a.rawAverage);
-    
-    // Save to disk
     saveLeaderboard(appState.leaderboard);
   }
 
@@ -242,12 +263,17 @@ function getClientState() {
 
 // REST API Endpoints
 app.get('/api/config', (req, res) => {
-  const lanIp = getLocalNetworkIp();
+  const host = req.get('host');
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const autoUrl = (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1'))
+    ? `${proto}://${host}`
+    : configuredHostUrl;
+
   res.json({
-    lanIp,
+    lanIp: getLocalNetworkIp(),
     port: PORT,
-    hostUrl: configuredHostUrl,
-    votingUrl: `${configuredHostUrl}/vote`,
+    hostUrl: autoUrl,
+    votingUrl: `${autoUrl}/vote`,
     votingDuration: VOTING_TIME
   });
 });
@@ -284,7 +310,16 @@ app.get('/api/state', (req, res) => {
 
 app.get('/api/qr', async (req, res) => {
   try {
-    const text = req.query.text || `${configuredHostUrl}/vote`;
+    let text = req.query.text;
+    if (!text) {
+      const host = req.get('host');
+      const proto = req.headers['x-forwarded-proto'] || req.protocol;
+      const base = (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1'))
+        ? `${proto}://${host}`
+        : configuredHostUrl;
+      text = `${base}/vote`;
+    }
+
     const dataUrl = await QRCode.toDataURL(text, {
       margin: 2,
       width: 400,
@@ -342,19 +377,16 @@ app.get('/stage', (req, res) => {
 io.on('connection', (socket) => {
   socket.emit('state:update', getClientState());
 
-  // Host: Start Performance
   socket.on('stage:start_performance', ({ candidateName, actName }) => {
     startPerformancePhase(candidateName, actName);
   });
 
-  // Host: Skip/End Performance early and open voting immediately
   socket.on('stage:skip_to_voting', () => {
     if (appState.status === 'PERFORMING') {
       startVotingPhase();
     }
   });
 
-  // Host: Add extra performance time (+15s)
   socket.on('stage:add_time', (seconds = 15) => {
     if (appState.status === 'PERFORMING' || appState.status === 'VOTING') {
       appState.timer += seconds;
@@ -362,33 +394,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Host: Force Reveal Scores early if voting is done
   socket.on('stage:force_reveal', () => {
     if (appState.status === 'VOTING') {
       revealScoresPhase();
     }
   });
 
-  // Host: Reset / Next Candidate
   socket.on('stage:reset_candidate', () => {
     resetToIdle();
   });
 
-  // Host: Clear Leaderboard
   socket.on('stage:clear_leaderboard', () => {
     appState.leaderboard = [];
     saveLeaderboard(appState.leaderboard);
     io.emit('state:update', getClientState());
   });
 
-  // Host: Delete single candidate from leaderboard
   socket.on('stage:delete_candidate', (id) => {
     appState.leaderboard = appState.leaderboard.filter(c => c.id !== id);
     saveLeaderboard(appState.leaderboard);
     io.emit('state:update', getClientState());
   });
 
-  // Voter: Submit Rating
   socket.on('vote:submit', ({ voterId, score }) => {
     if (appState.status !== 'VOTING') {
       return socket.emit('vote:response', {
@@ -436,14 +463,11 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  const lanIp = getLocalNetworkIp();
   console.log(`====================================================`);
   console.log(`🎭 IISERB GOT BANTERS / LATENT TALENT SHOW SERVER 🎭`);
   console.log(`====================================================`);
-  console.log(`🖥️  Stage Screen:     http://localhost:${PORT}`);
-  console.log(`📱 Audience Voting:   http://${lanIp}:${PORT}/vote`);
-  console.log(`🌐 Local Network IP:  ${lanIp}`);
+  console.log(`🖥️  Host URL:         ${configuredHostUrl}`);
+  console.log(`📱 Audience Voting:   ${configuredHostUrl}/vote`);
   console.log(`⏱️  Voting Timer:     ${VOTING_TIME} seconds`);
-  console.log(`💾 Leaderboard File:  ${LEADERBOARD_FILE}`);
   console.log(`====================================================`);
 });
