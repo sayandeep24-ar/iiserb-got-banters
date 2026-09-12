@@ -173,7 +173,11 @@ function handleStateUpdate(state) {
     }
   } else if (state.status === 'PERFORMING') {
     closedStatusHeading.textContent = 'Act in Progress';
-    closedStatusText.textContent = `${state.currentCandidate?.name || 'Candidate'} is on stage! Performance timer running. 45-second voting starts shortly!`;
+    closedStatusText.textContent = `${state.currentCandidate?.name || 'Candidate'} is on stage! 90-second performance running.`;
+    showView('CLOSED');
+  } else if (state.status === 'READY_TO_VOTE') {
+    closedStatusHeading.textContent = 'Performance Finished!';
+    closedStatusText.textContent = `${state.currentCandidate?.name || 'Candidate'} has finished their act! Host Souradip will open audience voting shortly. Get ready to grade!`;
     showView('CLOSED');
   } else if (state.status === 'REVEALED') {
     closedStatusHeading.textContent = 'Voting Locked';

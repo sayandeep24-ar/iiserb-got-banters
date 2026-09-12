@@ -7,6 +7,7 @@ const socket = io();
 // UI Elements
 const viewIdle = document.getElementById('view-idle');
 const viewPerforming = document.getElementById('view-performing');
+const viewReadyVote = document.getElementById('view-ready-vote');
 const viewVoting = document.getElementById('view-voting');
 const viewRevealed = document.getElementById('view-revealed');
 
@@ -15,6 +16,10 @@ const candidateNameInput = document.getElementById('candidateNameInput');
 const candidateActInput = document.getElementById('candidateActInput');
 const add15sBtn = document.getElementById('add15sBtn');
 const endPerformanceBtn = document.getElementById('endPerformanceBtn');
+const startVotingDirectBtn = document.getElementById('startVotingDirectBtn');
+const startVotingFromReadyBtn = document.getElementById('startVotingFromReadyBtn');
+const readyPerformerName = document.getElementById('readyPerformerName');
+const readyPerformerAct = document.getElementById('readyPerformerAct');
 const add10sVotingBtn = document.getElementById('add10sVotingBtn');
 const forceRevealBtn = document.getElementById('forceRevealBtn');
 const nextCandidateBtn = document.getElementById('nextCandidateBtn');
@@ -222,10 +227,10 @@ function renderStars(score) {
 
 // View Transitions
 function switchView(targetView) {
-  [viewIdle, viewPerforming, viewVoting, viewRevealed].forEach(v => {
-    v.style.display = 'none';
+  [viewIdle, viewPerforming, viewReadyVote, viewVoting, viewRevealed].forEach(v => {
+    if (v) v.style.display = 'none';
   });
-  targetView.style.display = 'block';
+  if (targetView) targetView.style.display = 'block';
 }
 
 // Generate & Update QR Code
@@ -272,7 +277,11 @@ socket.on('state:update', (state) => {
     switchView(viewPerforming);
     stagePerformerName.textContent = state.currentCandidate?.name || 'Performer';
     stagePerformerAct.textContent = state.currentCandidate?.act || 'Talent Act';
-    updatePerformanceTimer(state.timer, 60);
+    updatePerformanceTimer(state.timer, state.performanceDuration || 90);
+  } else if (state.status === 'READY_TO_VOTE') {
+    switchView(viewReadyVote);
+    readyPerformerName.textContent = state.currentCandidate?.name || 'Performer';
+    readyPerformerAct.textContent = state.currentCandidate?.act || 'Talent Act';
   } else if (state.status === 'VOTING') {
     switchView(viewVoting);
     votingPerformerName.textContent = state.currentCandidate?.name || 'Performer';
@@ -289,10 +298,20 @@ socket.on('state:update', (state) => {
   renderLeaderboard(state.leaderboard);
 });
 
+// Performance finished broadcast (buzzer & transition to host banter)
+socket.on('performance:finished', (data) => {
+  playBuzzer();
+  switchView(viewReadyVote);
+  if (data?.candidate) {
+    readyPerformerName.textContent = data.candidate.name;
+    readyPerformerAct.textContent = data.candidate.act;
+  }
+});
+
 // Timer Tick
 socket.on('timer:tick', ({ status, secondsLeft }) => {
   if (status === 'PERFORMING') {
-    updatePerformanceTimer(secondsLeft, 60);
+    updatePerformanceTimer(secondsLeft, 90);
     if (secondsLeft <= 10 && secondsLeft > 0) {
       playWarningBeep();
     } else if (secondsLeft === 0) {
@@ -310,7 +329,7 @@ socket.on('timer:tick', ({ status, secondsLeft }) => {
   }
 });
 
-function updatePerformanceTimer(secondsLeft, total = 60) {
+function updatePerformanceTimer(secondsLeft, total = 90) {
   performanceDigits.textContent = secondsLeft;
   
   if (secondsLeft <= 10) {
@@ -477,8 +496,22 @@ if (add10sVotingBtn) {
 
 endPerformanceBtn.addEventListener('click', () => {
   initAudio();
-  socket.emit('stage:skip_to_voting');
+  socket.emit('stage:end_performance');
 });
+
+if (startVotingDirectBtn) {
+  startVotingDirectBtn.addEventListener('click', () => {
+    initAudio();
+    socket.emit('stage:start_voting');
+  });
+}
+
+if (startVotingFromReadyBtn) {
+  startVotingFromReadyBtn.addEventListener('click', () => {
+    initAudio();
+    socket.emit('stage:start_voting');
+  });
+}
 
 forceRevealBtn.addEventListener('click', () => {
   initAudio();

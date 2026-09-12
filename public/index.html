@@ -31,6 +31,9 @@
             <span class="brand-presents-label">PRESENTS</span>
           </div>
           <h1 class="brand-title">IISERB GOT BANTERS</h1>
+          <div style="margin-top: 0.25rem;">
+            <span class="host-pill"><span style="color:var(--gold-primary);">🎙️</span> HOST: <strong>SOURADIP</strong></span>
+          </div>
         </div>
       </div>
 
@@ -72,7 +75,7 @@
         </div>
 
         <h2 class="performer-title" style="margin-bottom: 0.5rem;">NEXT ON STAGE</h2>
-        <p class="act-subtitle">Enter candidate details and call them to the spotlight</p>
+        <p class="act-subtitle">Host Souradip calls the next contestant to the spotlight</p>
 
         <form id="candidateForm" onsubmit="event.preventDefault(); handleStartPerformance();">
           <div class="form-group">
@@ -101,24 +104,24 @@
 
           <div style="margin-top: 2rem;">
             <button type="submit" class="btn-gold-primary">
-              🎤 Bring to Stage & Start 1-Min Timer
+              🎤 Bring to Stage & Start 90-Sec Timer
             </button>
           </div>
         </form>
       </section>
 
       <!-- ============================================== -->
-      <!-- VIEW 2: 1-MINUTE PERFORMANCE TIMER             -->
+      <!-- VIEW 2: 90-SECOND PERFORMANCE TIMER            -->
       <!-- ============================================== -->
       <section class="stage-card" id="view-performing" style="display: none;">
         <div class="performer-badge">
-          <span>🔥 On Stage Now</span>
+          <span>🔥 On Stage Now &bull; Host: Souradip</span>
         </div>
 
         <h2 class="performer-title" id="stagePerformerName">Candidate Name</h2>
         <p class="act-subtitle" id="stagePerformerAct">Stand-up Act</p>
 
-        <!-- 60s Circular SVG Countdown Ring -->
+        <!-- 90s Circular SVG Countdown Ring -->
         <div class="timer-container">
           <svg class="timer-svg" viewBox="0 0 280 280">
             <defs>
@@ -132,7 +135,7 @@
             <circle class="timer-progress-circle" id="performanceProgressCircle" cx="140" cy="140" r="130"></circle>
           </svg>
           <div class="timer-digits-wrapper">
-            <div class="timer-digits" id="performanceDigits">60</div>
+            <div class="timer-digits" id="performanceDigits">90</div>
             <div class="timer-label">SECONDS LEFT</div>
           </div>
         </div>
@@ -141,8 +144,37 @@
           <button class="btn-secondary" id="add15sBtn" title="Add 15 bonus seconds">
             + 15s
           </button>
-          <button class="btn-gold-primary" id="endPerformanceBtn">
-            ⚡ Performance Over (Open Voting)
+          <button class="btn-secondary" id="endPerformanceBtn" title="Finish act and prepare for voting">
+            ⏹️ End Performance
+          </button>
+          <button class="btn-gold-primary" id="startVotingDirectBtn">
+            🚀 Start Voting Now
+          </button>
+        </div>
+      </section>
+
+      <!-- ==================================================== -->
+      <!-- VIEW 2.5: PERFORMANCE COMPLETED - READY FOR VOTING   -->
+      <!-- ==================================================== -->
+      <section class="stage-card" id="view-ready-vote" style="display: none;">
+        <div class="performer-badge">
+          <span>👏 90s Performance Completed</span>
+        </div>
+
+        <h2 class="performer-title" id="readyPerformerName">Candidate Name</h2>
+        <p class="act-subtitle" id="readyPerformerAct">Stand-up Act</p>
+
+        <div class="ready-vote-box">
+          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎙️</div>
+          <h3 style="font-family: var(--font-display); font-size: 1.5rem; color: var(--gold-light); margin-bottom: 0.5rem;">
+            Act Finished! Banter & Discussion
+          </h3>
+          <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.5;">
+            Take comments with <strong>Host Souradip</strong>. Whenever you are ready, click below to open the 45-second audience voting and generate the QR code!
+          </p>
+
+          <button class="btn-gold-primary btn-start-voting" id="startVotingFromReadyBtn">
+            🚀 Start Audience Voting & Generate QR
           </button>
         </div>
       </section>

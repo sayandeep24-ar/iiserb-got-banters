@@ -96,11 +96,11 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configurable Phase Timers
-const PERFORMANCE_TIME = 60; // 1 minute performance
+const PERFORMANCE_TIME = 90; // 90 seconds (1.5 minutes)
 let VOTING_TIME = 45;        // 45 seconds voting
 
 let appState = {
-  status: 'IDLE', // 'IDLE' | 'PERFORMING' | 'VOTING' | 'REVEALED'
+  status: 'IDLE', // 'IDLE' | 'PERFORMING' | 'READY_TO_VOTE' | 'VOTING' | 'REVEALED'
   currentCandidate: null,
   timer: 0,
   votes: [],
@@ -174,7 +174,11 @@ function startPerformancePhase(candidateName, actName) {
 
     if (appState.timer <= 0) {
       clearAnyTimer();
-      startVotingPhase();
+      // Instead of auto-starting voting, enter READY_TO_VOTE so Host Souradip can banters and explicitly click Start Voting
+      appState.status = 'READY_TO_VOTE';
+      appState.timer = 0;
+      io.emit('state:update', getClientState());
+      io.emit('performance:finished', { candidate: appState.currentCandidate });
     }
   }, 1000);
 }
@@ -257,7 +261,9 @@ function getClientState() {
     leaderboard: appState.leaderboard,
     hostUrl: configuredHostUrl,
     votingUrl: `${configuredHostUrl}/vote`,
-    votingDuration: VOTING_TIME
+    votingDuration: VOTING_TIME,
+    performanceDuration: PERFORMANCE_TIME,
+    hostName: 'Souradip'
   };
 }
 
@@ -381,8 +387,26 @@ io.on('connection', (socket) => {
     startPerformancePhase(candidateName, actName);
   });
 
-  socket.on('stage:skip_to_voting', () => {
+  // End performance and move to READY_TO_VOTE state (allowing host banter before opening voting)
+  socket.on('stage:end_performance', () => {
     if (appState.status === 'PERFORMING') {
+      clearAnyTimer();
+      appState.status = 'READY_TO_VOTE';
+      appState.timer = 0;
+      io.emit('state:update', getClientState());
+      io.emit('performance:finished', { candidate: appState.currentCandidate });
+    }
+  });
+
+  // Explicitly Start Audience Voting (45s Timer & QR Code)
+  socket.on('stage:start_voting', () => {
+    if (appState.status === 'PERFORMING' || appState.status === 'READY_TO_VOTE') {
+      startVotingPhase();
+    }
+  });
+
+  socket.on('stage:skip_to_voting', () => {
+    if (appState.status === 'PERFORMING' || appState.status === 'READY_TO_VOTE') {
       startVotingPhase();
     }
   });
